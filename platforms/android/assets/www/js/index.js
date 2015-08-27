@@ -18,31 +18,21 @@
  */
          var pushNotification;
          var fdmSite = null;
+         var offlinePage = null;
+         var siteIsLoaded = false;
+         var connection = null;
+         var offlinePage = null;
             
             function onDeviceReady() {
-                var networkState = checkConnection();
-
-                if (networkState == Connection.NONE) {
-                    window.location="offline.html"; 
-                } else {
-                    fdmSite = cordova.InAppBrowser.open("http://fdm.brainhub.pl/app_dev.php/catalog/grid#/", "_blank", "location=no");
-                    //fdmSite.addEventListener('loadstop', siteIsReady);
-                }
-                
+                StatusBar.hide();
+                checkConnectionAndRedirect();
                 document.addEventListener("backbutton", function(e)
-                {                    
-                    if( $("#home").length > 0)
-                    {
-                        // call this to get a new token each time. don't call it to reuse existing token.
-                        //pushNotification.unregister(successHandler, errorHandler);
-                        e.preventDefault();
-                        navigator.app.exitApp();
-                    }
-                    else
-                    {
-                        navigator.app.backHistory();
-                    }
+                {   
+                    navigator.app.backHistory();
+
                 }, false);
+                document.addEventListener("offline", goOffline, false);
+                document.addEventListener("online", goOnline, false);
             
                 try 
                 { 
@@ -64,24 +54,34 @@
                 {
                     case 'registered':
                     if ( e.regid.length > 0 )
-                    {
-                        $("#app-status-ul").append('<li>REGISTERED -> REGID:' + e.regid + "</li>");
-                        // Your GCM push server needs to know the regID before it can push to this device
-                        // here is where you might want to send it the regID for later use.
+                    {   
+                        var intervalHandler = setInterval(function(){
+                            if (siteIsLoaded == true) {
+                                pushNotificationTokenReceived(e.regid);
+                                clearInterval(intervalHandler);
+                            }
+                        }, 1000);
                         console.log("regID = " + e.regid);
                        
                     }
                     break;
                     
                     case 'message':
-
-                        sendReceivedNotification(e.payload.message, e.payload.message);
+                        if (siteIsLoaded == true)
+                            sendReceivedNotification(e.payload.message, e.payload.message);
+                        else {
+                            var intervalHandler = setInterval(function(){
+                                if (siteIsLoaded == true) {
+                                    sendReceivedNotification(e.payload.message, e.payload.message);
+                                    clearInterval(intervalHandler);
+                                }
+                            }, 1000);
+                        }
+                        //pushNotificationTokenReceived(e.payload.message);
                         if (e.foreground)
                         {
                                
                         } 
-                        $("#app-status-ul").append('<li>MESSAGE -> MSG: ' + e.payload.message + '</li>');
-                        $("#app-status-ul").append('<li>MESSAGE -> MSGCNT: ' + e.payload.msgcnt + '</li>');
                         
                     break;
                     
@@ -125,5 +125,48 @@
                     code:mycode 
                 });
             }
+
+            function pushNotificationTokenReceived(token) {
+                var tokenWrapper = "\'"+token+"\'";
+                fdmSite.executeScript({
+                    code:"pushNotificationTokenReceived("+tokenWrapper+");"
+                })
+            }
+
+            function checkConnectionAndRedirect() {             
+               
+                if (checkConnection() == Connection.NONE) {
+                    goOffline();
+                } else {
+                   goOnline();
+                }    
+
+            }
+
+            function goOnline() { 
+
+                fdmSite = cordova.InAppBrowser.open("http://fdm.brainhub.pl/app_dev.php/catalog/grid#/", "_blank", "location=no", "zoom=no");
+                fdmSite.addEventListener('loadstart', inAppBrowserLoadStart);
+                fdmSite.addEventListener('loadstop', inAppBrowserLoadStop);
+           
+                    
+                fdmSite.addEventListener('exit', function() { navigator.app.exitApp(); });
+                
+            }
+
+            function goOffline() {
+
+                offlinePage = cordova.InAppBrowser.open("offline.html", "_blank", "location=no", "zoom=no");
+                offlinePage.addEventListener('exit', function() { navigator.app.exitApp(); });
+            }
+
+            function inAppBrowserLoadStart() {
+                siteIsLoaded=false;
+            };
+            function inAppBrowserLoadStop() {
+                siteIsLoaded = true;
+            };
             
             document.addEventListener('deviceready', onDeviceReady, true);
+
+

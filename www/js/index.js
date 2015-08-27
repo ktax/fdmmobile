@@ -18,28 +18,21 @@
  */
          var pushNotification;
          var fdmSite = null;
+         var offlinePage = null;
          var siteIsLoaded = false;
+         var connection = null;
+         var offlinePage = null;
             
             function onDeviceReady() {
-                var networkState = checkConnection();
-
-                if (networkState == Connection.NONE) {
-                    window.location="offline.html"; 
-                } else {
-                    fdmSite = cordova.InAppBrowser.open("http://fdm.brainhub.pl/app_dev.php/catalog/grid#/", "_blank", "location=no");
-                    //fdmSite.addEventListener('loadstop', siteIsReady);
-                    fdmSite.addEventListener('exit', function(event) { 
-                        navigator.app.exitApp();
-                    });
-                    fdmSite.addEventListener('loadstop', function(event){
-                        siteIsLoaded = true;
-                    });
-                }
-                
+                StatusBar.hide();
+                checkConnectionAndRedirect();
                 document.addEventListener("backbutton", function(e)
-                {                    
+                {   
                     navigator.app.backHistory();
+
                 }, false);
+                document.addEventListener("offline", goOffline, false);
+                document.addEventListener("online", goOnline, false);
             
                 try 
                 { 
@@ -67,15 +60,23 @@
                                 pushNotificationTokenReceived(e.regid);
                                 clearInterval(intervalHandler);
                             }
-                        }, 10000);
+                        }, 1000);
                         console.log("regID = " + e.regid);
                        
                     }
                     break;
                     
                     case 'message':
-
-                        sendReceivedNotification(e.payload.message, e.payload.message);
+                        if (siteIsLoaded == true)
+                            sendReceivedNotification(e.payload.message, e.payload.message);
+                        else {
+                            var intervalHandler = setInterval(function(){
+                                if (siteIsLoaded == true) {
+                                    sendReceivedNotification(e.payload.message, e.payload.message);
+                                    clearInterval(intervalHandler);
+                                }
+                            }, 1000);
+                        }
                         //pushNotificationTokenReceived(e.payload.message);
                         if (e.foreground)
                         {
@@ -131,5 +132,41 @@
                     code:"pushNotificationTokenReceived("+tokenWrapper+");"
                 })
             }
+
+            function checkConnectionAndRedirect() {             
+               
+                if (checkConnection() == Connection.NONE) {
+                    goOffline();
+                } else {
+                   goOnline();
+                }    
+
+            }
+
+            function goOnline() { 
+
+                fdmSite = cordova.InAppBrowser.open("http://fdm.brainhub.pl/app_dev.php/catalog/grid#/", "_blank", "location=no", "zoom=no");
+                fdmSite.addEventListener('loadstart', inAppBrowserLoadStart);
+                fdmSite.addEventListener('loadstop', inAppBrowserLoadStop);
+           
+                    
+                fdmSite.addEventListener('exit', function() { navigator.app.exitApp(); });
+                
+            }
+
+            function goOffline() {
+
+                offlinePage = cordova.InAppBrowser.open("offline.html", "_blank", "location=no", "zoom=no");
+                offlinePage.addEventListener('exit', function() { navigator.app.exitApp(); });
+            }
+
+            function inAppBrowserLoadStart() {
+                siteIsLoaded=false;
+            };
+            function inAppBrowserLoadStop() {
+                siteIsLoaded = true;
+            };
             
             document.addEventListener('deviceready', onDeviceReady, true);
+
+
