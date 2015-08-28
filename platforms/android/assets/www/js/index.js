@@ -145,19 +145,19 @@
 
             function goOnline() { 
 
-                fdmSite = cordova.InAppBrowser.open("http://fdm.brainhub.pl/app_dev.php/catalog/grid#/", "_blank", "location=no", "zoom=no");
+                fdmSite = cordova.InAppBrowser.open("http://fdm.brainhub.pl/app_dev.php/catalog/grid#/", "_blank", "location=no", "zoom=yes");
                 fdmSite.addEventListener('loadstart', inAppBrowserLoadStart);
                 fdmSite.addEventListener('loadstop', inAppBrowserLoadStop);
            
                     
-                fdmSite.addEventListener('exit', function() { navigator.app.exitApp(); });
+                fdmSite.addEventListener('exit', exitApp);
                 
             }
 
             function goOffline() {
 
-                offlinePage = cordova.InAppBrowser.open("offline.html", "_blank", "location=no", "zoom=no");
-                offlinePage.addEventListener('exit', function() { navigator.app.exitApp(); });
+                offlinePage = cordova.InAppBrowser.open("offline.html", "_blank", "location=no", "zoom=yes");
+                offlinePage.addEventListener('exit', exitApp);
             }
 
             function inAppBrowserLoadStart() {
@@ -166,6 +166,20 @@
             function inAppBrowserLoadStop() {
                 siteIsLoaded = true;
             };
+
+            function exitApp() {
+                if (fdmSite != null ) {
+                    fdmSite.removeEventListener('loadstart', inAppBrowserLoadStart);
+                    fdmSite.removeEventListener('loadstop', inAppBrowserLoadStop);
+                }
+                if (offlinePage != null ) {
+                    offlinePage.removeEventListener('exit', exitApp);
+                }
+
+                document.removeEventListener("offline", goOffline, false);
+                document.removeEventListener("online", goOnline, false);
+                navigator.app.exitApp(); 
+            }
             
             document.addEventListener('deviceready', onDeviceReady, true);
 
