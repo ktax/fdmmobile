@@ -8,7 +8,7 @@ var recentUrl = null;
             
 function onDeviceReady() {
     StatusBar.hide();
-    setTimeout(function(){ checkConnectionAndRedirect(); }, 3000);
+    checkConnectionAndRedirect();
    
     document.addEventListener("offline", goOffline, false);
     document.addEventListener("online", goOnline, false);
@@ -117,7 +117,7 @@ function checkConnectionAndRedirect() {
     if (checkConnection() == Connection.NONE) {
         goOffline();
     } else {
-       goOnline();
+        goOnline();
     }    
 
 }
@@ -130,23 +130,42 @@ function onResume() {
 
 
 function goOnline() { 
-    isOffline = false;
-    if (recentUrl == null) {
-        fdmSite = window.open("http://fdm.brainhub.pl/app_dev.php/", "_blank", "location=no", "zoom=no");
-        addListeners(fdmSite);
-    } else { 
-        fdmSite = window.open(recentUrl, "_blank", "location=no", "zoom=no");
-        addListeners(fdmSite);
+    navigator.splashscreen.show();
+    if (isOffline !=false) {
+        isOffline = false;
+        if (offlinePage != null)
+            offlinePage.close();
+        if (recentUrl == null) {
+            fdmSite = window.open("http://fdm.brainhub.pl/app_dev.php/", "_blank", "location=no", "zoom=no", "hidden=no");
+            addListeners(fdmSite);
+        } else { 
+            fdmSite = window.open(recentUrl, "_blank", "location=no", "zoom=no", "hidden=no");
+            addListeners(fdmSite);
+        }
     }
+    navigator.splashscreen.hide();
     
     
 }
 
 function goOffline() {
+    navigator.splashscreen.show();
+    if ( isOffline != true) {
+        isOffline = true;
+        if (fdmSite != null) {
+            removeListeners(fdmSite);
+            fdmSite.close();
+        }
+        openOfflinePage();      
+    }
+   navigator.splashscreen.hide();
+}
 
-    if (fdmSite != null)
-        removeListeners(fdmSite);
-    fdmSite = window.open("offline.html", "_blank", "location=no", "zoom=no");
+function openOfflinePage() {
+    offlinePage = window.open("offline.html", "_blank", "location=no", "zoom=no");
+    offlinePage.addEventListener("loadstop", function() {
+        offlinePage.show();
+    });
 }
 
 function addListeners(ref) {
@@ -175,10 +194,9 @@ function inAppBrowserLoadStart(event) {
     siteIsLoaded=false;
 };
 function inAppBrowserLoadStop(event) {
-    //fdmSite.show();
+    fdmSite.show();
     siteIsLoaded = true;
     recentUrl = event.url;
-    alert(recentUrl);
 };
 
 function inAppBrowserLoadError() {
@@ -204,6 +222,3 @@ function exitApp() {
 }
 
 document.addEventListener('deviceready', onDeviceReady, true);
-
-
-//problem z offline/online. przy uruchomieniu offline i przejsciu w online - crash. przy online->offline->online brak reakcji na backbutton.
