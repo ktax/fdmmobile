@@ -7,18 +7,25 @@ var isOffline = null;
 var recentUrl = null;
             
 function onDeviceReady() {
-    StatusBar.hide();
-    checkConnectionAndRedirect();
+    StatusBar.backgroundColorByHexString("#4285f4");
+    
    
-    document.addEventListener("offline", goOffline, false);
-    document.addEventListener("online", goOnline, false);
-    //document.addEventListener("resume", onResume, false);
             
 
     try 
     { 
         pushNotification = window.plugins.pushNotification;
-        pushNotification.register(successHandler, errorHandler, {"senderID":"348697062205","ecb":"onNotification"});        // required!  
+        pushNotification.register(successHandler, errorHandler, {"senderID":"348697062205","ecb":"onNotification"});        // required! 
+
+        recentUrl = localStorage.getItem("recentUrl");
+        checkConnectionAndRedirect();
+
+        document.addEventListener("offline", goOffline, false);
+        document.addEventListener("online", goOnline, false);
+        //document.addEventListener("resume", onResume, false);
+    
+
+        //alert(localStorage.getItem("recentUrl"));
     }
     catch(err) 
     { 
@@ -197,6 +204,7 @@ function inAppBrowserLoadStop(event) {
     fdmSite.show();
     siteIsLoaded = true;
     recentUrl = event.url;
+    localStorage.setItem("recentUrl", event.url);
 };
 
 function inAppBrowserLoadError() {
@@ -204,9 +212,12 @@ function inAppBrowserLoadError() {
 }
 
 function confirmExit(event) {
-    event.preventDefault();
-    if (confirm("Czy chcesz zamknąć aplikację?"))
+    isOffline = null;
+    if (confirm("Czy chcesz zamknąć aplikację?")) {
         exitApp();
+    } else {
+        checkConnectionAndRedirect();
+    }
 }
 
 function exitApp() {
@@ -214,7 +225,7 @@ function exitApp() {
         fdmSite.removeEventListener('loadstart', inAppBrowserLoadStart);
         fdmSite.removeEventListener('loadstop', inAppBrowserLoadStop);
     }
-
+    localStorage.removeItem("recentUrl");
     document.removeEventListener("offline", goOffline, false);
     document.removeEventListener("online", goOnline, false);
     
